@@ -2,6 +2,7 @@
 {
     Properties {
         _BlurAmount ("BlurAmount", Range(0.0, 1.0)) = 0.25
+        _OptimizationAmount ("OptimizationAmount", Range(0.0, 1.0)) = 1.0
     }
 
     HLSLINCLUDE
@@ -22,6 +23,7 @@
 
     // Properties.
     float _BlurAmount;
+    float _OptimizationAmount;
     TEXTURE2D_X(_BlurBuffer);
 
     // Commented reference implementation that is inefficient. This is broken up into 2 1-D kernel implementations
@@ -110,17 +112,21 @@
 
         float4 fog;
         SampleExpanseFog_float(linear01Depth, posInput.positionNDC, fog);
-        int blurRadius = clamp(pow(1-fog.w, 4) * _BlurAmount * 32, 0, 64) * (_ScreenParams.x / 1920);
+        int blurRadius = clamp(pow(1-fog.w, 4) * _BlurAmount * 128, 0, 128) * (_ScreenParams.x / 1920);
         float totalWeight = 1;
         color.xyz += CustomPassLoadCameraColor(varyings.positionCS.xy, 0);
-        for (int i = -blurRadius; i < blurRadius + 1; i+=2) {
-            float2 samplePos = clamp(varyings.positionCS.xy - float2(i, 0), 0, _ScreenParams.xy - 1);
+        int i = -blurRadius;
+        while (i < blurRadius + 1) {
+            int mip = floor(log2(abs(i * (0.1 + 0.4 * _OptimizationAmount))));
+            float sampleSize = max(1, pow(2, mip));
+            float2 samplePos = clamp(varyings.positionCS.xy + float2(i + sampleSize * 0.5, 0), 0, _ScreenParams.xy - 1);
             float sampleDepth = Linear01Depth(LoadCameraDepth(samplePos), _ZBufferParams);
             if (sampleDepth >= linear01Depth) {
-                float weight = saturate(1 - abs(i + 0.5)/(blurRadius + 1));
-                color.xyz += weight * CustomPassSampleCameraColor((samplePos + 1) / _ScreenParams.xy, 0);
+                float weight = sampleSize * saturate(1 - abs(i + sampleSize * 0.5)/(blurRadius + 1));
+                color.xyz += weight * CustomPassSampleCameraColor(samplePos / _ScreenParams.xy, mip);
                 totalWeight += weight;
             }
+            i += sampleSize;
         }
         color.xyz /= totalWeight;
 
@@ -154,26 +160,17 @@
 
         float4 fog;
         SampleExpanseFog_float(linear01Depth, posInput.positionNDC, fog);
-        int blurRadius = clamp(pow(1-fog.w, 4) * _BlurAmount * 32, 0, 64) * (_ScreenParams.x / 1920);
+        int blurRadius = clamp(pow(1-fog.w, 4) * _BlurAmount * 128, 0, 128) * (_ScreenParams.x / 1920);
         float totalWeight = 1;
         color.xyz += SAMPLE_TEXTURE2D_X_LOD(_BlurBuffer, s_linear_clamp_sampler, (varyings.positionCS.xy + 0.5) / _ScreenParams, 0);
-        // for (int i = -blurRadius; i < blurRadius + 1; i+=2) {
-        //     float2 samplePos = clamp(varyings.positionCS.xy - float2(0, i), 0, _ScreenParams.xy - 1);
-        //     float sampleDepth = Linear01Depth(LoadCameraDepth(samplePos), _ZBufferParams);
-        //     if (sampleDepth >= linear01Depth) {
-        //         float weight = saturate(1 - abs(i + 0.5)/(blurRadius + 1));
-        //         color.xyz += weight * SAMPLE_TEXTURE2D_X_LOD(_BlurBuffer, s_linear_clamp_sampler, (samplePos + 1) / _ScreenParams, 0);
-        //         totalWeight += weight;
-        //     }
-        // }
         int i = -blurRadius;
         while (i < blurRadius + 1) {
-            int mip = floor(log2(abs(i / 2)));
+            int mip = floor(log2(abs(i * (0.1 + 0.4 * _OptimizationAmount))));
             float sampleSize = max(1, pow(2, mip));
             float2 samplePos = clamp(varyings.positionCS.xy + float2(0, i + sampleSize * 0.5), 0, _ScreenParams.xy - 1);
             float sampleDepth = Linear01Depth(LoadCameraDepth(samplePos), _ZBufferParams);
             if (sampleDepth >= linear01Depth) {
-                float weight = saturate(1 - abs(i + sampleSize * 0.5)/(blurRadius + 1));
+                float weight = sampleSize * saturate(1 - abs(i + sampleSize * 0.5)/(blurRadius + 1));
                 color.xyz += weight * SAMPLE_TEXTURE2D_X_LOD(_BlurBuffer, s_linear_clamp_sampler, samplePos / _ScreenParams, mip);
                 totalWeight += weight;
             }

@@ -6,7 +6,9 @@ using UnityEngine.Experimental.Rendering;
 class ExpanseFogBlurCustomPass : CustomPass
 {
     [Range(0, 1)]
-    public float blurAmount;
+    public float blurAmount = 0.25f;
+    [Range(0, 1)]
+    public float optimizationAmount = 1;
 
     // Temp buffer.
     RTHandle blurBuffer;
@@ -31,6 +33,7 @@ class ExpanseFogBlurCustomPass : CustomPass
         }
         var blurProperties = new MaterialPropertyBlock();
         blurProperties.SetFloat("_BlurAmount", blurAmount);
+        blurProperties.SetFloat("_OptimizationAmount", optimizationAmount);
         CoreUtils.DrawFullScreen(cmd, blurMaterial, blurBuffer, blurProperties, shaderPassId: 1);
         SetCameraRenderTarget(cmd);
         blurProperties.SetTexture("_BlurBuffer", blurBuffer);
