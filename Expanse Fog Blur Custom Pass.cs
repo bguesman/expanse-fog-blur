@@ -26,7 +26,7 @@ class ExpanseFogBlurCustomPass : CustomPass
         blurMaterial = CoreUtils.CreateEngineMaterial(Shader.Find("FullScreen/ExpanseFogBlur"));
     }
 
-    protected override void Execute(ScriptableRenderContext renderContext, CommandBuffer cmd, HDCamera hdCamera, CullingResults cullingResult)
+    protected override void Execute(CustomPassContext ctx)
     {
         if (blurMaterial == null) {
             return;
@@ -34,10 +34,10 @@ class ExpanseFogBlurCustomPass : CustomPass
         var blurProperties = new MaterialPropertyBlock();
         blurProperties.SetFloat("_BlurAmount", blurAmount);
         blurProperties.SetFloat("_OptimizationAmount", optimizationAmount);
-        CoreUtils.DrawFullScreen(cmd, blurMaterial, blurBuffer, blurProperties, shaderPassId: 1);
-        SetCameraRenderTarget(cmd);
+        CoreUtils.DrawFullScreen(ctx.cmd, blurMaterial, blurBuffer, blurProperties, shaderPassId: 1);
+        CoreUtils.SetRenderTarget(ctx.cmd, ctx.cameraColorBuffer, ctx.cameraDepthBuffer);
         blurProperties.SetTexture("_BlurBuffer", blurBuffer);
-        CoreUtils.DrawFullScreen(cmd, blurMaterial, blurProperties, shaderPassId: 2);
+        CoreUtils.DrawFullScreen(ctx.cmd, blurMaterial, blurProperties, shaderPassId: 2);
     }
 
     protected override void Cleanup()
