@@ -162,7 +162,7 @@
         SampleExpanseFog_float(linear01Depth, posInput.positionNDC, fog);
         int blurRadius = clamp(pow(1-fog.w, 4) * _BlurAmount * 128, 0, 128) * (_ScreenParams.x / 1920);
         float totalWeight = 1;
-        color.xyz += SAMPLE_TEXTURE2D_X_LOD(_BlurBuffer, s_linear_clamp_sampler, (varyings.positionCS.xy + 0.5) / _ScreenParams, 0);
+        color.xyz += SAMPLE_TEXTURE2D_X_LOD(_BlurBuffer, s_linear_clamp_sampler, (varyings.positionCS.xy + 0.5) * _ScreenSize.zw * _RTHandleScale.xy, 0);
         int i = -blurRadius;
         while (i < blurRadius + 1) {
             int mip = floor(log2(abs(i * (0.1 + 0.4 * _OptimizationAmount))));
@@ -171,7 +171,7 @@
             float sampleDepth = Linear01Depth(LoadCameraDepth(samplePos), _ZBufferParams);
             if (sampleDepth >= linear01Depth) {
                 float weight = sampleSize * saturate(1 - abs(i + sampleSize * 0.5)/(blurRadius + 1));
-                color.xyz += weight * SAMPLE_TEXTURE2D_X_LOD(_BlurBuffer, s_linear_clamp_sampler, samplePos / _ScreenParams, mip);
+                color.xyz += weight * SAMPLE_TEXTURE2D_X_LOD(_BlurBuffer, s_linear_clamp_sampler, samplePos * _ScreenSize.zw * _RTHandleScale.xy, mip);
                 totalWeight += weight;
             }
             i += sampleSize;
